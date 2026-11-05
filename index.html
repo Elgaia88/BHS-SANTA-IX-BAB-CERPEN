@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Materi Cerpen</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f3;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+        h1, h2, h3 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .btn-start {
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-start:hover {
+            background-color: #2980b9;
+        }
+        .timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #ffeaea;
+            border-radius: 8px;
+        }
+        .question-text {
+            font-size: 18px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .option-btn {
+            padding: 15px;
+            background-color: #f8f9fa;
+            color: #333;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .option-btn:hover:not(:disabled) {
+            background-color: #e2e6ea;
+            border-color: #dae0e5;
+        }
+        .option-btn:disabled {
+            cursor: not-allowed;
+        }
+        /* Kontras warna font dan background saat dipilih/benar/salah */
+        .correct {
+            background-color: #2ecc71 !important;
+            color: #ffffff !important;
+            border-color: #27ae60 !important;
+        }
+        .wrong {
+            background-color: #e74c3c !important;
+            color: #ffffff !important;
+            border-color: #c0392b !important;
+        }
+        .hidden {
+            display: none;
+        }
+        .review-section {
+            margin-top: 30px;
+            max-height: 400px;
+            overflow-y: auto;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+        .review-item {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #ccc;
+        }
+        .review-item.benar {
+            border-left-color: #2ecc71;
+        }
+        .review-item.salah {
+            border-left-color: #e74c3c;
+        }
+        .confetti {
+            position: fixed;
+            top: -10px;
+            width: 10px;
+            height: 10px;
+            z-index: 9999;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="setup-screen">
+    <h1>Kuis Materi Cerpen</h1>
+    <p style="text-align: center;">Uji pemahamanmu dengan 30 prediksi soal ujian!</p>
+    
+    <div class="form-group">
+        <label for="playerName">Nama Pemain:</label>
+        <input type="text" id="playerName" placeholder="Masukkan nama Anda..." required>
+    </div>
+    
+    <div class="form-group">
+        <label for="timeLimit">Durasi Waktu Per Soal:</label>
+        <select id="timeLimit">
+            <option value="15">15 Detik</option>
+            <option value="30">30 Detik</option>
+        </select>
+    </div>
+    
+    <button class="btn-start" onclick="startQuiz()">Mulai Kuis</button>
+</div>
+
+<div class="container hidden" id="quiz-screen">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <span id="displayPlayerName" style="font-weight: bold; color: #7f8c8d;"></span>
+        <span id="displayProgress" style="font-weight: bold; color: #7f8c8d;"></span>
+    </div>
+    <div class="timer" id="timerDisplay">Waktu: --</div>
+    <div class="question-text" id="questionText">Loading...</div>
+    <div class="options" id="optionsContainer"></div>
+</div>
+
+<div class="container hidden" id="result-screen">
+    <h1 id="resultTitle">Kuis Selesai!</h1>
+    <h2 id="finalScore"></h2>
+    
+    <button class="btn-start" onclick="location.reload()">Ulangi Kuis</button>
+
+    <div class="review-section" id="reviewContainer">
+        <h3>Review Jawaban:</h3>
+        <!-- Hasil review akan dirender di sini -->
+    </div>
+</div>
+
+<script>
+    // Prediksi 30 Soal Berdasarkan Materi Cerpen
+    const rawQuestions = [
+        { q: "Pengertian cerpen yang tepat adalah...", a: "Karangan fiksi ringkas yang berfokus pada satu tokoh dalam satu situasi", w: ["Kisah nyata sejarah tentang pahlawan", "Tulisan naratif lebih dari 20.000 kata", "Kisah panjang dengan banyak konflik dan tokoh"] },
+        { q: "Berapa jumlah maksimal kata dalam sebuah cerpen agar bisa dibaca dalam sekali duduk?", a: "Tidak lebih dari 10.000 kata", w: ["Tidak lebih dari 5.000 kata", "Minimal 15.000 kata", "Berkisar 20.000 hingga 30.000 kata"] },
+        { q: "Salah satu ciri cerpen adalah bersifat fiksi. Apa arti dari fiksi?", a: "Bersumber dari imajinasi pengarang", w: ["Berdasarkan penelitian ilmiah", "Diangkat dari kisah nyata sepenuhnya", "Ditulis menggunakan bahasa ilmiah baku"] },
+        { q: "Cerpen umumnya memiliki alur cerita yang bersifat...", a: "Tunggal (fokus pada satu peristiwa besar)", w: ["Ganda", "Berulang (Siklus)", "Tidak beraturan"] },
+        { q: "Diksi yang digunakan dalam cerpen sebaiknya sederhana, yang bermakna...", a: "Pembaca mudah memahami kata tanpa harus mencari maknanya di kamus", w: ["Menggunakan istilah asing yang estetis", "Mengandung banyak kata arkais/kuno", "Mengharuskan pembaca menebak-nebak maknanya"] },
+        { q: "Pesan moral atau pelajaran hidup yang terdapat di dalam cerita disebut...", a: "Amanat", w: ["Tema", "Alur", "Penokohan"] },
+        { q: "Gagasan yang menonjol dan menjadi dasar utama dalam sebuah cerita disebut...", a: "Tema utama", w: ["Tema tambahan", "Latar suasana", "Orientasi"] },
+        { q: "Tempat, waktu, dan suasana yang melatarbelakangi peristiwa dalam cerita disebut...", a: "Latar (Setting)", w: ["Alur (Plot)", "Sudut Pandang", "Gaya Bahasa"] },
+        { q: "Alur yang susunannya dimulai dari peristiwa pertama, kedua, dan seterusnya hingga akhir cerita disebut...", a: "Alur maju (linear)", w: ["Alur mundur (flashback)", "Alur campuran", "Alur acak"] },
+        { q: "Alur yang menceritakan peristiwa terakhir terlebih dahulu, lalu kembali ke masa lampau disebut...", a: "Alur mundur (flashback)", w: ["Alur maju", "Alur linear", "Alur progresif"] },
+        { q: "Tahapan alur cerita setelah tahap perkenalan adalah...", a: "Konflik atau masalah", w: ["Penyelesaian masalah", "Koda", "Resolusi"] },
+        { q: "Tokoh yang sering ditampilkan, diceritakan, dan menjadi pusat cerita dalam cerpen disebut...", a: "Tokoh utama", w: ["Tokoh pendukung", "Tokoh tambahan", "Tokoh figuran"] },
+        { q: "Metode di mana pengarang melukiskan watak tokoh secara langsung dalam narasinya disebut...", a: "Analitik (langsung)", w: ["Dramatik (tidak langsung)", "Ekstrinsik", "Campuran"] },
+        { q: "Melukiskan watak tokoh melalui tempat tinggal, tingkah laku, atau dialog antartokoh disebut metode...", a: "Dramatik", w: ["Analitik", "Deskriptif", "Ekspresif"] },
+        { q: "Jika pengarang menggunakan kata ganti 'aku' dan tokoh utama menceritakan dirinya sendiri, sudut pandang yang digunakan adalah...", a: "Orang pertama pelaku utama", w: ["Orang pertama pelaku sampingan", "Orang ketiga serbatahu", "Orang ketiga terbatas"] },
+        { q: "Sudut pandang di mana pencerita mengetahui semua perilaku, pikiran, dan perasaan seluruh tokoh adalah...", a: "Orang ketiga serbatahu", w: ["Orang ketiga terbatas", "Orang pertama pengamat", "Orang pertama pelaku utama"] },
+        { q: "Cara pengarang mengungkapkan ceritanya melalui majas, bahasa gaul, atau diksi tertentu disebut...", a: "Gaya Bahasa", w: ["Sudut Pandang", "Amanat", "Penokohan"] },
+        { q: "Berikut ini yang merupakan bagian dari unsur ekstrinsik cerpen adalah...", a: "Latar belakang masyarakat (kondisi politik, sosial, ekonomi)", w: ["Tema cerita", "Alur dan Latar", "Sudut pandang pengarang"] },
+        { q: "Nilai dalam cerita yang berkaitan dengan adat, tradisi, pakaian tradisional, atau bahasa daerah disebut...", a: "Nilai budaya", w: ["Nilai sosial", "Nilai agama", "Nilai moral"] },
+        { q: "Nilai yang mengajarkan keimanan, ketaatan beribadah, dan hubungan manusia dengan Tuhan disebut...", a: "Nilai agama", w: ["Nilai moral", "Nilai pendidikan", "Nilai sosial"] },
+        { q: "Nilai yang menunjukkan hubungan saling menolong, toleransi, dan gotong royong dengan masyarakat disebut...", a: "Nilai sosial", w: ["Nilai agama", "Nilai pendidikan", "Nilai moral"] },
+        { q: "Gambaran awal cerita yang bersifat opsional dan berfungsi sebagai pengenalan cerita disebut...", a: "Abstrak", w: ["Orientasi", "Komplikasi", "Koda"] },
+        { q: "Bagian cerpen yang memperkenalkan latar waktu, tempat, maupun pengenalan tokoh disebut...", a: "Orientasi", w: ["Evaluasi", "Abstrak", "Resolusi"] },
+        { q: "Penjelasan mengenai sebab akibat konflik, pertentangan, atau kesukaran antartokoh terdapat pada struktur...", a: "Komplikasi", w: ["Orientasi", "Resolusi", "Koda"] },
+        { q: "Bagian yang menampilkan kondisi akhir nasib tokoh utama serta akhir penyelesaian konflik secara utuh disebut...", a: "Resolusi", w: ["Evaluasi", "Orientasi", "Abstrak"] },
+        { q: "Bagian penutup cerita yang sering kali memuat pesan moral atau interpretasi dari cerita disebut...", a: "Koda", w: ["Resolusi", "Komplikasi", "Orientasi"] },
+        { q: "Salah satu kaidah kebahasaan cerpen adalah penggunaan makna kiasan atau makna tambahan, yang disebut...", a: "Makna konotatif", w: ["Makna denotatif", "Makna harfiah", "Makna lugas"] },
+        { q: "Kalimat yang mengutip langsung ucapan seseorang dan ditandai dengan tanda kutip ganda disebut...", a: "Kalimat langsung", w: ["Kalimat tidak langsung", "Kalimat pasif", "Kalimat deskriptif"] },
+        { q: "Penggunaan kata 'di, ke, dari, saat, pada' dalam cerpen berfungsi sebagai...", a: "Kata keterangan waktu dan tempat", w: ["Kata ganti orang ketiga", "Kata kerja tindakan", "Kata sifat (adjektiva)"] },
+        { q: "Metafora, personifikasi, dan hiperbola di dalam teks cerpen dikategorikan sebagai...", a: "Penggunaan majas (gaya bahasa)", w: ["Kata baku dan tidak baku", "Penggunaan kalimat langsung", "Kata bermakna konotatif"] }
+    ];
+
+    let quizQuestions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let timeLimit = 15;
+    let timeRemaining = 15;
+    let timerInterval = null;
+    let playerName = "";
+    let reviewData = [];
+
+    // Fungsi Mengacak Array (Fisher-Yates)
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function startQuiz() {
+        const nameInput = document.getElementById("playerName").value.trim();
+        if (nameInput === "") {
+            alert("Harap masukkan nama Anda terlebih dahulu!");
+            return;
+        }
+        playerName = nameInput;
+        timeLimit = parseInt(document.getElementById("timeLimit").value);
+        
+        // Membangun format soal
+        quizQuestions = rawQuestions.map(item => {
+            let options = [
+                { text: item.a, isCorrect: true },
+                { text: item.w[0], isCorrect: false },
+                { text: item.w[1], isCorrect: false },
+                { text: item.w[2], isCorrect: false }
+            ];
+            return {
+                questionText: item.q,
+                options: shuffleArray(options),
+                correctAnswerText: item.a
+            };
+        });
+
+        // Mengacak urutan 30 soal
+        quizQuestions = shuffleArray(quizQuestions);
+
+        // Pindah layer
+        document.getElementById("setup-screen").classList.add("hidden");
+        document.getElementById("quiz-screen").classList.remove("hidden");
+        document.getElementById("displayPlayerName").innerText = "Pemain: " + playerName;
+
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        if (currentQuestionIndex >= quizQuestions.length) {
+            endQuiz();
+            return;
+        }
+
+        const currentQ = quizQuestions[currentQuestionIndex];
+        timeRemaining = timeLimit;
+        
+        document.getElementById("displayProgress").innerText = `Soal ${currentQuestionIndex + 1} / ${quizQuestions.length}`;
+        document.getElementById("questionText").innerText = currentQ.questionText;
+        document.getElementById("timerDisplay").innerText = `Waktu: ${timeRemaining} detik`;
+
+        const optionsContainer = document.getElementById("optionsContainer");
+        optionsContainer.innerHTML = "";
+
+        currentQ.options.forEach((opt, index) => {
+            const btn = document.createElement("button");
+            btn.className = "option-btn";
+            btn.innerText = opt.text;
+            btn.onclick = () => selectAnswer(btn, opt.isCorrect, opt.text);
+            optionsContainer.appendChild(btn);
+        });
+
+        clearInterval(timerInterval);
+        timerInterval = setInterval(countdownTimer, 1000);
+    }
+
+    function countdownTimer() {
+        timeRemaining--;
+        document.getElementById("timerDisplay").innerText = `Waktu: ${timeRemaining} detik`;
+
+        if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            handleTimeOut();
+        }
+    }
+
+    function handleTimeOut() {
+        const buttons = document.querySelectorAll(".option-btn");
+        const currentQ = quizQuestions[currentQuestionIndex];
+        
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            if (btn.innerText === currentQ.correctAnswerText) {
+                btn.classList.add("correct");
+            }
+        });
+
+        recordAnswer("Waktu Habis", currentQ.correctAnswerText, currentQ.questionText, false);
+
+        setTimeout(() => {
+            currentQuestionIndex++;
+            loadQuestion();
+        }, 2000);
+    }
+
+    function selectAnswer(selectedBtn, isCorrect, selectedText) {
+        clearInterval(timerInterval);
+        const buttons = document.querySelectorAll(".option-btn");
+        const currentQ = quizQuestions[currentQuestionIndex];
+
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            if (btn.innerText === currentQ.correctAnswerText) {
+                btn.classList.add("correct");
+            }
+        });
+
+        if (isCorrect) {
+            score++;
+            triggerConfetti();
+        } else {
+            selectedBtn.classList.add("wrong");
+        }
+
+        recordAnswer(selectedText, currentQ.correctAnswerText, currentQ.questionText, isCorrect);
+
+        setTimeout(() => {
+            currentQuestionIndex++;
+            loadQuestion();
+        }, 2000);
+    }
+
+    function recordAnswer(userAns, correctAns, question, isCorrect) {
+        reviewData.push({
+            question: question,
+            userAns: userAns,
+            correctAns: correctAns,
+            isCorrect: isCorrect
+        });
+    }
+
+    function endQuiz() {
+        document.getElementById("quiz-screen").classList.add("hidden");
+        document.getElementById("result-screen").classList.remove("hidden");
+
+        const finalScoreValue = Math.round((score / quizQuestions.length) * 100);
+        document.getElementById("resultTitle").innerText = `Kuis Selesai, ${playerName}!`;
+        document.getElementById("finalScore").innerText = `Skor Anda: ${finalScoreValue} (Benar ${score} dari ${quizQuestions.length})`;
+
+        const reviewContainer = document.getElementById("reviewContainer");
+        reviewData.forEach((item, index) => {
+            const div = document.createElement("div");
+            div.className = "review-item " + (item.isCorrect ? "benar" : "salah");
+            div.innerHTML = `
+                <p><strong>${index + 1}. ${item.question}</strong></p>
+                <p style="color: ${item.isCorrect ? '#27ae60' : '#c0392b'};">Jawaban Anda: ${item.userAns}</p>
+                ${!item.isCorrect ? `<p style="color: #27ae60;">Jawaban Benar: ${item.correctAns}</p>` : ""}
+            `;
+            reviewContainer.appendChild(div);
+        });
+    }
+
+    function triggerConfetti() {
+        for (let i = 0; i < 40; i++) {
+            let conf = document.createElement("div");
+            conf.classList.add("confetti");
+            conf.style.left = Math.random() * 100 + "vw";
+            conf.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            conf.style.animationDuration = (Math.random() * 2 + 1) + "s";
+            document.body.appendChild(conf);
+            
+            setTimeout(() => {
+                conf.remove();
+            }, 3000);
+        }
+    }
+</script>
+</body>
+</html>
